@@ -7,7 +7,7 @@ Advanced Power BI churn analytics dashboard featuring DAX modeling, custom HTML/
 
 ## Dashboard Preview
 
-![Overview](screenshots/Churndashboard.png)
+![Overview](screenshots/Churn_overview.png.png)
 
 ![Priority list](screenshots/Priority_list.png)
 
