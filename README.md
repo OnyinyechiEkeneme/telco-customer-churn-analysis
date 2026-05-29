@@ -1,9 +1,7 @@
 # telco-customer-churn-analysis
 Advanced Power BI churn analytics dashboard featuring DAX modeling, custom HTML/CSS/JavaScript visuals, customer risk scoring, revenue-at-risk analysis, and interactive retention intelligence for telecom customer churn reduction.
-
-<img width="571" height="320" alt="Churn dashboard" src="https://github.com/user-attachments/assets/8a4d6bb2-bb45-4258-a00b-31d703dd16e7" />
-
-<img width="678" height="375" alt="Priority_list" src="https://github.com/user-attachments/assets/9be0c903-af66-4225-8965-e64d02c44ed6" />
+<img width="571" height="320" alt="Churn_overview png" src="https://github.com/user-attachments/assets/1c4aad4e-2a5e-4887-990b-eaf1258694ab" />
+<img width="678" height="375" alt="Priority_list" src="https://github.com/user-attachments/assets/bd31190f-602f-4c49-9d12-ce209e27b2f7" />
 
 ## Dashboard Preview
 
