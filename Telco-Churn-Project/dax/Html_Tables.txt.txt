@@ -1,0 +1,658 @@
+//##TopRiskCustomer##//
+
+
+Top Risk Customers HTML = 
+ 
+// ── Footer counts ──
+VAR critCount = FORMAT([Critical Active Count], "#,0")
+VAR highCount = FORMAT([High Active Count],     "#,0")
+VAR medCount  = FORMAT([Medium Active Count],   "#,0")
+VAR lowCount  = FORMAT([Low Active Count],      "#,0")
+ 
+// ── Top 8 Critical active customers sorted by $/mo desc ──────
+// DAX cannot do row-level iteration in a string measure cleanly,
+// so we pull each row explicitly using TOPN + SELECTCOLUMNS
+ 
+VAR TopRows =
+    TOPN(
+        5,
+        FILTER(
+            Telco_Churn,
+            Telco_Churn[Churn]       = "No" &&
+            Telco_Churn[Risk Label]  = "Critical" &&
+            Telco_Churn[Contract]    = "Month-to-month"
+        ),
+        Telco_Churn[MonthlyCharges], DESC
+    )
+ 
+VAR RowData =
+    SELECTCOLUMNS(
+        TopRows,
+        "ID",      Telco_Churn[customerID],
+        "Tenure",  Telco_Churn[tenure],
+        "Net",     Telco_Churn[InternetService],
+        "Pay",     Telco_Churn[PaymentMethod],
+        "Mo",      Telco_Churn[MonthlyCharges],
+        "Risk",    Telco_Churn[Risk Label]
+    )
+ 
+// ── Build HTML rows via CONCATENATEX ─────────────────────────
+VAR _Rows =
+    CONCATENATEX(
+        RowData,
+        "<tr>" &
+        "<td class='cid'>" & [ID] & "</td>" &
+        "<td>" & [Tenure] & " mo</td>" &
+        "<td>" & IF([Net] = "Fiber optic", "Fiber", [Net]) & "</td>" &
+        "<td>" & IF([Pay] = "Electronic check", "E-check", IF([Pay] = "Mailed check", "Mailed chk", IF([Pay] = "Bank transfer (automatic)", "Bank transfer", "Credit card"))) & "</td>" &
+        "<td>$" & FORMAT([Mo], "0") & "</td>" &
+        "<td><span class='badge-" & LOWER([Risk]) & "'>" & [Risk] & "</span></td>" &
+        "</tr>",
+        "",
+        [Mo], DESC
+    )
+ 
+VAR CSS =
+"<style>
+*{
+    box-sizing:border-box;
+    margin:0;
+    padding:0
+}
+
+body{
+    font-family:'Segoe UI',sans-serif;
+    background:#ffffff;
+    padding:16px;
+    color:#111827
+}
+
+.header-title{
+    font-size:23px;
+    font-weight:600;
+    color:#111827;
+    margin-bottom:10px
+}
+
+
+
+table{
+    width:100%;
+    border-collapse:collapse
+}
+
+thead th{
+    font-size:15px;
+    color:#6b7280;
+    text-transform:uppercase;
+    letter-spacing:.06em;
+    padding:0 10px 8px 0;
+    text-align:left;
+    border-bottom:1px solid #e5e7eb
+}
+
+tbody tr{
+    border-bottom:1px solid #f1f5f9
+}
+
+tbody tr:last-child{
+    border-bottom:none
+}
+
+tbody td{
+    font-size:16px;
+    color:#374151;
+    padding:10px 10px 10px 0;
+    font-family:'Segoe UI',sans-serif
+}
+
+.cid{
+    color:#111827;
+    font-weight:600
+}
+
+.badge-critical{
+    background:rgba(255,77,109,0.10);
+    color:#ff4d6d;
+    font-size:13px;
+    font-weight:600;
+    padding:4px 10px;
+    border-radius:99px;
+    display:inline-block
+}
+
+.badge-high{
+    background:rgba(245,158,11,0.10);
+    color:#f59e0b;
+    font-size:13px;
+    font-weight:600;
+    padding:4px 10px;
+    border-radius:99px;
+    display:inline-block
+}
+
+.badge-medium{
+    background:rgba(245,158,11,0.10);
+    color:#f59e0b;
+    font-size:13px;
+    font-weight:600;
+    padding:4px 10px;
+    border-radius:99px;
+    display:inline-block
+}
+
+.badge-low{
+    background:rgba(45,212,160,0.10);
+    color:#2dd4a0;
+    font-size:13px;
+    font-weight:600;
+    padding:4px 10px;
+    border-radius:99px;
+    display:inline-block
+}
+
+</style>"
+ 
+RETURN
+"<!DOCTYPE html>
+<html>
+<head>" &
+
+CSS &
+
+"</head>
+
+<body>
+
+<div class='header-title'>
+Top high-risk customers
+</div>
+
+
+<table>
+
+<thead>
+<tr>
+<th>CUSTOMER ID</th>
+<th>TENURE</th>
+<th>INTERNET</th>
+<th>PAYMENT</th>
+<th>$/MO</th>
+<th>RISK</th>
+</tr>
+</thead>
+
+<tbody>
+" & _Rows & "
+</tbody>
+
+</table>
+
+
+
+</body>
+</html>"
+
+
+
+
+//##RiskCardsTable##//
+
+Risk Cards HTML = 
+ 
+VAR cCount   = FORMAT([Critical Total Count],  "#,0")
+VAR cRev     = "$" & FORMAT([Critical Risk Revenue] / 1000, "0") & "K"
+VAR cCharge  = "$" & FORMAT([Avg Charge Critical], "0.00")
+VAR cTenure  = FORMAT([Avg Tenure Critical], "0.0") & " mo"
+VAR cFiber   = FORMAT([Fiber % Critical], "0%")
+VAR cEck     = FORMAT([ECheck % Critical], "0%")
+VAR cBarW    = FORMAT(DIVIDE([Avg Tenure Critical], 72) * 100, "0") & "%"
+ 
+VAR hCount   = FORMAT([High Total Count],  "#,0")
+VAR hRev     = "$" & FORMAT([High Risk Revenue] / 1000, "0") & "K"
+VAR hCharge  = "$" & FORMAT([Avg Charge High], "0.00")
+VAR hTenure  = FORMAT([Avg Tenure High], "0.0") & " mo"
+VAR hFiber   = FORMAT([Fiber % High], "0%")
+VAR hEck     = FORMAT([ECheck % High], "0%")
+VAR hBarW    = FORMAT(DIVIDE([Avg Tenure High], 72) * 100, "0") & "%"
+ 
+VAR mCount   = FORMAT([Medium Total Count],  "#,0")
+VAR mRev     = "$" & FORMAT([Medium Risk Revenue] / 1000, "0") & "K"
+VAR mCharge  = "$" & FORMAT([Avg Charge Medium], "0.00")
+VAR mTenure  = FORMAT([Avg Tenure Medium], "0.0") & " mo"
+VAR mFiber   = FORMAT([Fiber % Medium], "0%")
+VAR mEck     = FORMAT([ECheck % Medium], "0%")
+VAR mBarW    = FORMAT(DIVIDE([Avg Tenure Medium], 72) * 100, "0") & "%"
+ 
+VAR lCount   = FORMAT([Low Total Count],  "#,0")
+VAR lRev     = "$" & FORMAT([Low Risk Revenue] / 1000, "0") & "K"
+VAR lCharge  = "$" & FORMAT([Avg Charge Low], "0.00")
+VAR lTenure  = FORMAT([Avg Tenure Low], "0.0") & " mo"
+VAR lFiber   = FORMAT([Fiber % Low], "0%")
+VAR lEck     = FORMAT([ECheck % Low], "0%")
+VAR lBarW    = FORMAT(DIVIDE([Avg Tenure Low], 72) * 100, "0") & "%"
+ 
+VAR CSS = "
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+    font-family:'Segoe UI',sans-serif;
+    background:transparent;
+    padding:14px
+}
+.grid{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:12px;
+    transform:scale(1.2);
+    transform-origin:top left;
+    width:83.33%;
+}
+.card{
+    background:#ffffff;
+    border-radius:10px;
+    padding:14px;
+    border-top:3px solid var(--a);
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    border:1px solid #e5e7eb;
+}
+.critical{--a:#ff4d6d;--ad:rgba(255,77,109,0.15)}
+.high{--a:#f59e0b;--ad:rgba(245,158,11,0.10)}
+.medium{--a:#f59e0b;--ad:rgba(245,158,11,0.10)}
+.low{--a:#2dd4a0;--ad:rgba(45,212,160,0.15)}
+.ch{display:flex;justify-content:space-between;align-items:center}
+.rl{font-family:'Segoe UI',sans-serif;font-size:18px;font-weight:600;color:var(--a)}
+.cc{font-size:15px;color:#5a6070;font-family:'Segoe UI',sans-serif;}
+.kr{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.kb{
+    background:#f8fafc;
+    border-radius:6px;
+    padding:9px 10px;
+    border:1px solid #e5e7eb;
+}
+.kv{font-family:'Segoe UI',sans-serif;font-size:22px;font-weight:600;color:var(--a);line-height:1}
+.kl{font-size:14px;color:#5a6070;margin-top:4px;text-transform:uppercase;letter-spacing:.04em}
+.sv{
+    font-family:'Segoe UI',sans-serif;
+    font-size:20px;
+    font-weight:600;
+    color:#111827
+}
+.sl{font-size:14px;color:#5a6070;margin-top:3px;text-transform:uppercase;letter-spacing:.04em}
+.th{display:flex;justify-content:space-between;align-items:center}
+.tl{font-size:14px;color:#5a6070;text-transform:uppercase;letter-spacing:.04em}
+.tv{font-family:'Segoe UI',sans-serif;font-size:16px;font-weight:600;color:var(--a)}
+.tt{
+    height:4px;
+    background:#e2e8f0;
+    border-radius:99px;
+    overflow:hidden;
+    margin-top:5px
+}
+.tf{height:100%;background:var(--a);border-radius:99px}
+.af{background:var(--ad);border-radius:6px;padding:8px 10px;font-size:14px;color:#8a90a0;line-height:1.5;border-left:2px solid var(--a)}
+.af b{color:var(--a);font-weight:600}
+.dv{
+    height:1px;
+    background:#e5e7eb
+}
+</style>"
+ 
+VAR _HTML =
+"<!DOCTYPE html><html><head><link href='https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap' rel='stylesheet'>" & CSS & "</head><body><div class='grid'>" &
+ 
+"<div class='card critical'>" &
+  "<div class='ch'><span class='rl'>Critical</span><span class='cc'>" & cCount & " customers</span></div>" &
+  "<div class='kr'><div class='kb'><div class='kv'>" & cRev & "</div><div class='kl'>Monthly revenue</div></div><div class='kb'><div class='kv'>" & cCharge & "</div><div class='kl'>Avg charge</div></div></div>" &
+  "<div class='dv'></div>" &
+  "<div class='kr'><div class='kb'><div class='sv'>" & cFiber & "</div><div class='sl'>Fiber optic</div></div><div class='kb'><div class='sv'>" & cEck & "</div><div class='sl'>E-check</div></div></div>" &
+  "<div><div class='th'><span class='tl'>Avg tenure</span><span class='tv'>" & cTenure & "</span></div><div class='tt'><div class='tf' style='width:" & cBarW & "'></div></div></div>" &
+"</div>" &
+ 
+"<div class='card high'>" &
+  "<div class='ch'><span class='rl'>High</span><span class='cc'>" & hCount & " customers</span></div>" &
+  "<div class='kr'><div class='kb'><div class='kv'>" & hRev & "</div><div class='kl'>Monthly revenue</div></div><div class='kb'><div class='kv'>" & hCharge & "</div><div class='kl'>Avg charge</div></div></div>" &
+  "<div class='dv'></div>" &
+  "<div class='kr'><div class='kb'><div class='sv'>" & hFiber & "</div><div class='sl'>Fiber optic</div></div><div class='kb'><div class='sv'>" & hEck & "</div><div class='sl'>E-check</div></div></div>" &
+  "<div><div class='th'><span class='tl'>Avg tenure</span><span class='tv'>" & hTenure & "</span></div><div class='tt'><div class='tf' style='width:" & hBarW & "'></div></div></div>" &
+"</div>" &
+ 
+"<div class='card medium'>" &
+  "<div class='ch'><span class='rl'>Medium</span><span class='cc'>" & mCount & " customers</span></div>" &
+  "<div class='kr'><div class='kb'><div class='kv'>" & mRev & "</div><div class='kl'>Monthly revenue</div></div><div class='kb'><div class='kv'>" & mCharge & "</div><div class='kl'>Avg charge</div></div></div>" &
+  "<div class='dv'></div>" &
+  "<div class='kr'><div class='kb'><div class='sv'>" & mFiber & "</div><div class='sl'>Fiber optic</div></div><div class='kb'><div class='sv'>" & mEck & "</div><div class='sl'>E-check</div></div></div>" &
+  "<div><div class='th'><span class='tl'>Avg tenure</span><span class='tv'>" & mTenure & "</span></div><div class='tt'><div class='tf' style='width:" & mBarW & "'></div></div></div>" &
+"</div>" &
+ 
+"<div class='card low'>" &
+  "<div class='ch'><span class='rl'>Low</span><span class='cc'>" & lCount & " customers</span></div>" &
+  "<div class='kr'><div class='kb'><div class='kv'>" & lRev & "</div><div class='kl'>Monthly revenue</div></div><div class='kb'><div class='kv'>" & lCharge & "</div><div class='kl'>Avg charge</div></div></div>" &
+  "<div class='dv'></div>" &
+  "<div class='kr'><div class='kb'><div class='sv'>" & lFiber & "</div><div class='sl'>Fiber optic</div></div><div class='kb'><div class='sv'>" & lEck & "</div><div class='sl'>E-check</div></div></div>" &
+  "<div><div class='th'><span class='tl'>Avg tenure</span><span class='tv'>" & lTenure & "</span></div><div class='tt'><div class='tf' style='width:" & lBarW & "'></div></div></div>" &
+"</div>" &
+ 
+"</div></body></html>"
+ 
+RETURN _HTML
+ 
+
+
+//##CustomerTable##//
+
+
+Customer Table HTML = 
+
+VAR dq = """"
+
+/* ── 1. DATA ── */
+VAR TopCustomers =
+    TOPN(
+        500,
+        FILTER(Telco_Churn, Telco_Churn[Churn] = "No"),
+        Telco_Churn[Risk Score], DESC,
+        Telco_Churn[MonthlyCharges], DESC
+    )
+
+VAR TotalCount = [Filtered Active Count]
+
+VAR _DataJS =
+    CONCATENATEX(
+        TopCustomers,
+        "{id:'"       & SUBSTITUTE(Telco_Churn[customerID], "'", "") & "'"  &
+        ",gender:'"   & Telco_Churn[gender]                          & "'"  &
+        ",senior:'"   & Telco_Churn[SeniorCitizen]                   & "'"  &
+        ",tenure:"    & FORMAT(Telco_Churn[tenure], "0")                    &
+        ",internet:'" &
+            SWITCH(Telco_Churn[InternetService],
+                "Fiber optic", "Fiber",
+                "No",          "None",
+                Telco_Churn[InternetService]
+            ) & "'" &
+        ",contract:'" &
+            SWITCH(Telco_Churn[Contract],
+                "Month-to-month", "M-t-M",
+                "One year",       "1 yr",
+                "Two year",       "2 yr",
+                Telco_Churn[Contract]
+            ) & "'" &
+        ",payment:'"  &
+            SWITCH(Telco_Churn[PaymentMethod],
+                "Electronic check",         "E-check",
+                "Bank transfer (automatic)","Bank transfer",
+                "Credit card (automatic)",  "Credit card",
+                Telco_Churn[PaymentMethod]
+            ) & "'" &
+        ",tech:'"     & Telco_Churn[TechSupport]                     & "'"  &
+        ",monthly:"   & FORMAT(Telco_Churn[MonthlyCharges], "0")           &
+        ",score:"     & FORMAT(Telco_Churn[Risk Score], "0")               &
+        ",risk:'"     & Telco_Churn[Risk Label]                      & "'"  &
+        "}",
+        ",",
+        Telco_Churn[Risk Score],       DESC,
+        Telco_Churn[MonthlyCharges],   DESC
+    )
+
+/* ── 2. CSS ── */
+VAR _CSS =
+    "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');" &
+    "*{box-sizing:border-box;margin:0;padding:0}" &
+    "body{font-family:'Inter',sans-serif;background:#fff;color:#1a1a2e;font-size:15px;padding:16px}" &
+    ".toolbar{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap}" &
+    ".search-wrap{position:relative;flex:1;min-width:200px}" &
+    ".search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#9ca3af;font-size:15px;pointer-events:none}" &
+    ".search-input{width:100%;padding:7px 10px 7px 30px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:inherit;color:#374151;background:#f9fafb;outline:none;transition:border-color .15s,box-shadow .15s}" &
+    ".search-input:focus{border-color:#9C49A7;box-shadow:0 0 0 3px rgba(99,102,241,.1);background:#fff}" &
+    ".search-input::placeholder{color:#9ca3af}" &
+    ".filter-select{padding:7px 28px 7px 10px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:inherit;color:#374151;background:#f9fafb;-webkit-appearance:none;appearance:none;cursor:pointer;outline:none;transition:border-color .15s}" &
+    ".filter-select:focus{border-color:#9C49A7}" &
+    ".showing-label{margin-left:auto;font-size:13px;color:#9ca3af;white-space:nowrap}" &
+    ".table-wrap{border:1px solid #e5e7eb;border-radius:8px;overflow:hidden}" &
+    "table{width:100%;border-collapse:collapse}" &
+    "thead{background:#f9fafb;border-bottom:1px solid #e5e7eb}" &
+    "thead th{padding:9px 12px;text-align:left;font-size:13px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;cursor:pointer;user-select:none}" &
+    "thead th:hover{color:#374151}" &
+    "thead th.sorted{color:#9C49A7}" &
+    ".sort-arrow{display:inline-block;margin-left:4px;opacity:0.4;font-size:12px}" &
+    "thead th.sorted .sort-arrow{opacity:1;color:#9C49A7}" &
+    "tbody tr{border-bottom:1px solid #f3f4f6;transition:background .1s}" &
+    "tbody tr:last-child{border-bottom:none}" &
+    "tbody tr:hover{background:#f9fafb}" &
+    "tbody td{padding:9px 12px;color:#374151;white-space:nowrap}" &
+    ".col-id{font-weight:600;color:#111827;font-size:13px;font-family:'SF Mono','Fira Code',monospace}" &
+    ".col-num{font-variant-numeric:tabular-nums}" &
+    ".col-money{font-variant-numeric:tabular-nums;font-weight:500;color:#111827}" &
+    ".score-wrap{display:flex;align-items:center;gap:6px}" &
+    ".score-bar-track{width:40px;height:4px;background:#e5e7eb;border-radius:99px;overflow:hidden}" &
+    ".score-bar-fill{height:100%;border-radius:99px}" &
+    ".score-val{font-size:13px;font-weight:600;min-width:14px}" &
+    ".badge{display:inline-block;font-size:12px;font-weight:600;padding:2px 9px;border-radius:99px;letter-spacing:.02em}" &
+    ".badge-Critical{background:#fef2f2;color:#dc2626;border:1px solid #fecaca}" &
+    ".badge-High{background:#fffbeb;color:#d97706;border:1px solid #fed7aa}" &
+    ".badge-Medium{background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe}" &
+    ".badge-Low{background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0}" &
+    ".pagination{display:flex;align-items:center;justify-content:flex-end;gap:4px;margin-top:12px}" &
+    ".pg-btn{min-width:28px;height:28px;padding:0 6px;border:1px solid #e5e7eb;border-radius:5px;background:#fff;font-size:13px;font-family:inherit;color:#374151;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}" &
+    ".pg-btn:hover:not(:disabled){background:#f3f4f6;border-color:#d1d5db}" &
+    ".pg-btn.active{
+    background:#9C49A7;
+    border-color:#9C49A7;
+    color:#fff;
+    font-weight:600
+}" &
+    ".pg-btn:disabled{opacity:.4;cursor:not-allowed}" &
+    ".empty{text-align:center;padding:32px;color:#9ca3af;font-size:15px}" &
+    ".note{font-size:13px;color:#9ca3af;margin-top:10px;text-align:right}"
+
+/* ── 3. BODY SHELL ── */
+VAR _Body =
+    "<div class=" & dq & "toolbar" & dq & ">" &
+
+        "<div class=" & dq & "search-wrap" & dq & ">" &
+            "<span class=" & dq & "search-icon" & dq & ">⌕</span>" &
+            "<input class=" & dq & "search-input" & dq &
+                " type=" & dq & "text" & dq &
+                " id=" & dq & "searchInput" & dq &
+                " placeholder=" & dq & "Search ID, internet, payment, gender..." & dq &
+                " oninput=" & dq & "applyFilters()" & dq & ">" &
+        "</div>" &
+
+        "<select class=" & dq & "filter-select" & dq &
+            " id=" & dq & "riskFilter" & dq &
+            " onchange=" & dq & "applyFilters()" & dq & ">" &
+            "<option value=" & dq & dq & ">All risk levels</option>" &
+            "<option>Critical</option>" &
+            "<option>High</option>" &
+            "<option>Medium</option>" &
+            "<option>Low</option>" &
+        "</select>" &
+
+        "<select class=" & dq & "filter-select" & dq &
+            " id=" & dq & "internetFilter" & dq &
+            " onchange=" & dq & "applyFilters()" & dq & ">" &
+            "<option value=" & dq & dq & ">All internet</option>" &
+            "<option>Fiber</option>" &
+            "<option>DSL</option>" &
+            "<option>None</option>" &
+        "</select>" &
+
+        "<select class=" & dq & "filter-select" & dq &
+            " id=" & dq & "contractFilter" & dq &
+            " onchange=" & dq & "applyFilters()" & dq & ">" &
+            "<option value=" & dq & dq & ">All contracts</option>" &
+            "<option>M-t-M</option>" &
+            "<option>1 yr</option>" &
+            "<option>2 yr</option>" &
+        "</select>" &
+
+        "<select class=" & dq & "filter-select" & dq &
+            " id=" & dq & "paymentFilter" & dq &
+            " onchange=" & dq & "applyFilters()" & dq & ">" &
+            "<option value=" & dq & dq & ">All payment types</option>" &
+            "<option>E-check</option>" &
+            "<option>Bank transfer</option>" &
+            "<option>Credit card</option>" &
+            "<option>Mailed check</option>" &
+        "</select>" &
+
+        "<span class=" & dq & "showing-label" & dq & " id=" & dq & "showingLabel" & dq & ">Loading...</span>" &
+    "</div>" &
+
+    "<div class=" & dq & "table-wrap" & dq & ">" &
+        "<table>" &
+        "<thead><tr>" &
+            "<th onclick=" & dq & "sortBy('id')" & dq & ">CUSTOMER ID <span class=" & dq & "sort-arrow" & dq & " id=" & dq & "sort-id" & dq & ">↕</span></th>" &
+            "<th onclick=" & dq & "sortBy('gender')" & dq & ">GENDER <span class=" & dq & "sort-arrow" & dq & " id=" & dq & "sort-gender" & dq & ">↕</span></th>" &
+            "<th onclick=" & dq & "sortBy('senior')" & dq & ">SENIOR <span class=" & dq & "sort-arrow" & dq & " id=" & dq & "sort-senior" & dq & ">↕</span></th>" &
+            "<th onclick=" & dq & "sortBy('tenure')" & dq & ">TENURE <span class=" & dq & "sort-arrow" & dq & " id=" & dq & "sort-tenure" & dq & ">↕</span></th>" &
+            "<th onclick=" & dq & "sortBy('internet')" & dq & ">INTERNET <span class=" & dq & "sort-arrow" & dq & " id=" & dq & "sort-internet" & dq & ">↕</span></th>" &
+            "<th onclick=" & dq & "sortBy('contract')" & dq & ">CONTRACT <span class=" & dq & "sort-arrow" & dq & " id=" & dq & "sort-contract" & dq & ">↕</span></th>" &
+            "<th onclick=" & dq & "sortBy('payment')" & dq & ">PAYMENT <span class=" & dq & "sort-arrow" & dq & " id=" & dq & "sort-payment" & dq & ">↕</span></th>" &
+            "<th onclick=" & dq & "sortBy('tech')" & dq & ">TECH SUPPORT <span class=" & dq & "sort-arrow" & dq & " id=" & dq & "sort-tech" & dq & ">↕</span></th>" &
+            "<th onclick=" & dq & "sortBy('monthly')" & dq & ">$/MO <span class=" & dq & "sort-arrow" & dq & " id=" & dq & "sort-monthly" & dq & ">↕</span></th>" &
+            "<th onclick=" & dq & "sortBy('score')" & dq & ">SCORE <span class=" & dq & "sort-arrow" & dq & " id=" & dq & "sort-score" & dq & ">↕</span></th>" &
+            "<th onclick=" & dq & "sortBy('risk')" & dq & ">RISK <span class=" & dq & "sort-arrow" & dq & " id=" & dq & "sort-risk" & dq & ">↕</span></th>" &
+        "</tr></thead>" &
+        "<tbody id=" & dq & "tableBody" & dq & "></tbody>" &
+        "</table>" &
+    "</div>" &
+
+    "<div class=" & dq & "pagination" & dq & " id=" & dq & "pagination" & dq & "></div>" 
+
+/* ── 4. JAVASCRIPT ── */
+VAR _JS =
+    "var ALL_DATA=[" & _DataJS & "];" &
+    "var TOTAL_COUNT=" & FORMAT(TotalCount, "0") & ";" &
+    "var PAGE_SIZE= 9;" &
+    "var filtered=ALL_DATA.slice();" &
+    "var currentPage=1;" &
+    "var sortCol='score';" &
+    "var sortDir=-1;" &
+
+    "function scoreColor(s){return s>=10?'#dc2626':s>=7?'#d97706':s>=4?'#2563eb':'#16a34a';}" &
+
+    "function applyFilters(){" &
+        "var q=document.getElementById('searchInput').value.toLowerCase();" &
+        "var risk=document.getElementById('riskFilter').value;" &
+        "var inet=document.getElementById('internetFilter').value;" &
+        "var contract=document.getElementById('contractFilter').value;" &
+        "var payment=document.getElementById('paymentFilter').value;" &
+        "filtered=ALL_DATA.filter(function(r){" &
+            "var mq=!q||" &
+                "r.id.toLowerCase().indexOf(q)>-1||" &
+                "r.internet.toLowerCase().indexOf(q)>-1||" &
+                "r.payment.toLowerCase().indexOf(q)>-1||" &
+                "r.gender.toLowerCase().indexOf(q)>-1||" &
+                "r.tech.toLowerCase().indexOf(q)>-1;" &
+            "var mr=!risk||r.risk===risk;" &
+            "var mi=!inet||r.internet===inet;" &
+            "var mc=!contract||r.contract===contract;" &
+            "var mp=!payment||r.payment===payment;" &
+            "return mq&&mr&&mi&&mc&&mp;" &
+        "});" &
+        "currentPage=1;" &
+        "sortAndRender();" &
+    "}" &
+
+    "function sortBy(col){" &
+        "if(sortCol===col){sortDir*=-1;}" &
+        "else{sortCol=col;sortDir=(col==='score'||col==='monthly'||col==='tenure')?-1:1;}" &
+        "document.querySelectorAll('thead th').forEach(function(th){th.classList.remove('sorted');});" &
+        "document.querySelectorAll('.sort-arrow').forEach(function(a){a.textContent='↕';});" &
+        "var th=document.getElementById('sort-'+col);" &
+        "if(th){th.parentElement.classList.add('sorted');th.textContent=sortDir===1?'↑':'↓';}" &
+        "currentPage=1;" &
+        "sortAndRender();" &
+    "}" &
+
+    "function sortAndRender(){" &
+        "filtered.sort(function(a,b){" &
+            "var av=a[sortCol], bv=b[sortCol];" &
+            "if(typeof av==='string'){av=av.toLowerCase();bv=bv.toLowerCase();}" &
+            "return av<bv?-sortDir:av>bv?sortDir:0;" &
+        "});" &
+        "render();" &
+    "}" &
+
+    "function render(){" &
+        "var total=filtered.length;" &
+        "var pages=Math.max(1,Math.ceil(total/PAGE_SIZE));" &
+        "if(currentPage>pages)currentPage=pages;" &
+        "var start=(currentPage-1)*PAGE_SIZE;" &
+        "var pageData=filtered.slice(start,start+PAGE_SIZE);" &
+        "var end=Math.min(start+PAGE_SIZE,total);" &
+        "document.getElementById('showingLabel').textContent=" &
+            "total===0?'No results':" &
+            "'Showing '+(start+1)+'–'+end+' of '+total+' ('+TOTAL_COUNT+' total active)';" &
+        "var tbody=document.getElementById('tableBody');" &
+        "if(!pageData.length){" &
+            "tbody.innerHTML='<tr><td colspan=" & dq & "11" & dq & " class=" & dq & "empty" & dq & ">No customers match your filters</td></tr>';" &
+            "document.getElementById('pagination').innerHTML='';" &
+            "return;" &
+        "}" &
+        "tbody.innerHTML=pageData.map(function(r){" &
+            "var barW=Math.round((r.score/12)*100);" &
+            "var barC=scoreColor(r.score);" &
+            "return '<tr>'" &
+                "+'<td class=" & dq & "col-id" & dq & ">'+r.id+'</td>'" &
+                "+'<td>'+r.gender+'</td>'" &
+                "+'<td>'+r.senior+'</td>'" &
+                "+'<td class=" & dq & "col-num" & dq & ">'+r.tenure+' mo</td>'" &
+                "+'<td>'+r.internet+'</td>'" &
+                "+'<td>'+r.contract+'</td>'" &
+                "+'<td>'+r.payment+'</td>'" &
+                "+'<td>'+r.tech+'</td>'" &
+                "+'<td class=" & dq & "col-money" & dq & ">$'+r.monthly+'</td>'" &
+                "+'<td><div class=" & dq & "score-wrap" & dq & ">'" &
+                    "+'<div class=" & dq & "score-bar-track" & dq & ">'" &
+                        "+'<div class=" & dq & "score-bar-fill" & dq & " style=" & dq & "width:'+barW+'%;background:'+barC+'" & dq & "></div>'" &
+                    "+'</div>'" &
+                    "+'<span class=" & dq & "score-val" & dq & " style=" & dq & "color:'+barC+'" & dq & ">'+r.score+'</span>'" &
+                "+'</div></td>'" &
+                "+'<td><span class=" & dq & "badge badge-'+r.risk+'" & dq & ">'+r.risk+'</span></td>'" &
+            "+'</tr>';" &
+        "}).join('');" &
+
+        "var pg=document.getElementById('pagination');" &
+        "var btns='';" &
+        "btns+='<button class=" & dq & "pg-btn" & dq & "' +(currentPage===1?' disabled':'')+' onclick=" & dq & "goPage('+(currentPage-1)+')" & dq & ">‹</button>';" &
+        "var range=[];" &
+        "for(var i=1;i<=pages;i++){" &
+            "if(i===1||i===pages||Math.abs(i-currentPage)<=1)range.push(i);" &
+            "else if(range[range.length-1]!=='…')range.push('…');" &
+        "}" &
+        "range.forEach(function(p){" &
+            "if(p==='…'){btns+='<button class=" & dq & "pg-btn" & dq & " disabled>…</button>';}" &
+            "else{btns+='<button class=" & dq & "pg-btn'+(p===currentPage?' active':'')+'" & dq & " onclick=" & dq & "goPage('+p+')" & dq & ">'+p+'</button>';}" &
+        "});" &
+        "btns+='<button class=" & dq & "pg-btn" & dq & "' +(currentPage===pages?' disabled':'')+' onclick=" & dq & "goPage('+(currentPage+1)+')" & dq & ">›</button>';" &
+        "pg.innerHTML=btns;" &
+    "}" &
+
+    "function goPage(p){" &
+        "var pages=Math.ceil(filtered.length/PAGE_SIZE);" &
+        "if(p<1||p>pages)return;" &
+        "currentPage=p;" &
+        "render();" &
+    "}" &
+
+    /* init: mark score column sorted, render */
+    "document.getElementById('sort-score').parentElement.classList.add('sorted');" &
+    "document.getElementById('sort-score').textContent='↓';" &
+    "sortAndRender();"
+
+/* ── 5. ASSEMBLE ── */
+VAR _HTML =
+    "<!DOCTYPE html><html><head><meta charset='utf-8'>" &
+    "<link href='https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap' rel='stylesheet'>" &
+    "<style>" & _CSS & "</style>" &
+    "</head><body>" &
+    _Body &
+    "<script>" & _JS & "</script>" &
+    "</body></html>"
+
+RETURN
+    _HTML

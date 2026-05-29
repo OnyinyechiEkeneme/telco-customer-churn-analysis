@@ -1,0 +1,44 @@
+Tenure Bucket = 
+SWITCH(
+    TRUE(),
+    Telco_Churn[tenure] <= 12, "0-12 months",
+    Telco_Churn[tenure] <= 24, "13-24 months",
+    Telco_Churn[tenure] <= 48, "25-48 months",
+    "49-72 months"
+)
+
+Tenure Bucket Sort = 
+SWITCH(
+    TRUE(),
+    Telco_Churn[tenure] <= 12, 1,
+    Telco_Churn[tenure] <= 24, 2,
+    Telco_Churn[tenure] <= 48, 3,
+    4
+)
+
+Risk Score = 
+    IF(Telco_Churn[tenure] <= 12,                              3, 0) +
+    IF(Telco_Churn[InternetService] = "Fiber optic",           2, 0) +
+    IF(Telco_Churn[PaymentMethod] = "Electronic check",        2, 0) +
+    IF(Telco_Churn[Contract] = "Month-to-month",               2, 0) +
+    IF(Telco_Churn[TechSupport] = "No",                        1, 0) +
+    IF(Telco_Churn[SeniorCitizen] = "Yes",                     1, 0) +
+    IF(Telco_Churn[Partner] = "No",                            1, 0)
+
+Risk Label = 
+SWITCH(
+    TRUE(),
+    Telco_Churn[Risk Score] >= 8, "Critical",
+    Telco_Churn[Risk Score] >= 6, "High",
+    Telco_Churn[Risk Score] >= 4, "Medium",
+    "Low"
+)
+
+Risk Label Sort = 
+SWITCH(
+    TRUE(),
+    Telco_Churn[Risk Score] >= 8, 1,
+    Telco_Churn[Risk Score] >= 6, 2,
+    Telco_Churn[Risk Score] >= 4, 3,
+    4
+)
